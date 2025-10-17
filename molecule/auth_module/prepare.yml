@@ -1,0 +1,39 @@
+---
+- name: Prepare
+  hosts: all
+  become: yes
+  tasks:
+    # Ubuntu specific
+    - name: Install apt dependencies
+      ansible.builtin.apt:
+        name:
+          - python3
+          - python3-pip
+        update_cache: yes
+      ignore_errors: yes
+      when: ansible_facts['pkg_mgr'] == 'apt'
+
+    # RHEL/Amazon Linux specific
+    - name: Install yum dependencies
+      ansible.builtin.yum:
+        name:
+          - python3
+          - python3-pip
+        state: present
+      ignore_errors: yes
+      when: ansible_facts['pkg_mgr'] in ['yum', 'dnf']
+
+    # SLES specific
+    - name: Install zypper dependencies
+      ansible.builtin.zypper:
+        name:
+          - python3
+          - python3-pip
+        state: present
+      ignore_errors: yes
+      when: ansible_facts['pkg_mgr'] == 'zypper'
+
+    - name: Install FalconPy SDK
+      ansible.builtin.pip:
+        name: crowdstrike-falconpy>=1.4.3
+        state: present

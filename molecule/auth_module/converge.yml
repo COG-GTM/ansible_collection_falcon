@@ -1,0 +1,107 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Test auth module - Generate token (basic)
+      crowdstrike.falcon.auth:
+        client_id: "{{ lookup('env', 'FALCON_CLIENT_ID') }}"
+        client_secret: "{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"
+        action: generate
+      register: auth_result
+      run_once: true
+
+    - name: Verify auth result contains required keys
+      ansible.builtin.assert:
+        that:
+          - auth_result is defined
+          - auth_result.auth is defined
+          - auth_result.auth.access_token is defined
+          - auth_result.auth.access_token | length > 0
+          - auth_result.auth.cloud is defined
+          - auth_result.auth.cloud in ['us-1', 'us-2', 'eu-1', 'us-gov-1']
+          - auth_result.changed == false
+        fail_msg: "Auth module did not return expected structure"
+        success_msg: "Auth module returned valid token structure"
+
+    - name: Test auth module with different cloud regions
+      crowdstrike.falcon.auth:
+        client_id: "{{ lookup('env', 'FALCON_CLIENT_ID') }}"
+        client_secret: "{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"
+        cloud: "{{ item }}"
+        action: generate
+      register: cloud_auth_results
+      run_once: true
+      loop:
+        - us-1
+        - us-2
+        - eu-1
+      ignore_errors: yes
+
+    - name: Verify cloud-specific auth attempts
+      ansible.builtin.assert:
+        that:
+          - cloud_auth_results.results is defined
+          - cloud_auth_results.results | length == 3
+        fail_msg: "Cloud-specific auth tests did not complete"
+        success_msg: "Cloud-specific auth tests completed"
+
+    - name: Test auth module with member_cid (if available)
+      crowdstrike.falcon.auth:
+        client_id: "{{ lookup('env', 'FALCON_CLIENT_ID') }}"
+        client_secret: "{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"
+        member_cid: "{{ lookup('env', 'FALCON_MEMBER_CID') | default('', true) }}"
+        action: generate
+      register: member_auth_result
+      run_once: true
+      when: lookup('env', 'FALCON_MEMBER_CID') | default('', true) | length > 0
+      ignore_errors: yes
+
+    - name: Test auth module - Revoke token
+      crowdstrike.falcon.auth:
+        client_id: "{{ lookup('env', 'FALCON_CLIENT_ID') }}"
+        client_secret: "{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"
+        action: revoke
+        access_token: "{{ auth_result.auth.access_token }}"
+      register: revoke_result
+      run_once: true
+
+    - name: Verify revoke result
+      ansible.builtin.assert:
+        that:
+          - revoke_result is defined
+          - revoke_result.changed == false
+        fail_msg: "Token revocation failed"
+        success_msg: "Token successfully revoked"
+
+    - name: Test auth module with environment variables
+      crowdstrike.falcon.auth:
+      register: env_auth_result
+      run_once: true
+      environment:
+        FALCON_CLIENT_ID: "{{ lookup('env', 'FALCON_CLIENT_ID') }}"
+        FALCON_CLIENT_SECRET: "{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"
+
+    - name: Verify environment variable auth
+      ansible.builtin.assert:
+        that:
+          - env_auth_result is defined
+          - env_auth_result.auth.access_token is defined
+          - env_auth_result.auth.access_token | length > 0
+        fail_msg: "Auth with environment variables failed"
+        success_msg: "Auth with environment variables succeeded"
+
+    - name: Test idempotency - Generate token twice
+      crowdstrike.falcon.auth:
+        client_id: "{{ lookup('env', 'FALCON_CLIENT_ID') }}"
+        client_secret: "{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"
+        action: generate
+      register: idempotent_result
+      run_once: true
+
+    - name: Verify idempotency (no changes reported)
+      ansible.builtin.assert:
+        that:
+          - idempotent_result.changed == false
+        fail_msg: "Auth module should not report changes"
+        success_msg: "Auth module correctly reports no changes"
