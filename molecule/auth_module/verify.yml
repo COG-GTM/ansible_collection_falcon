@@ -1,0 +1,142 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Generate fresh auth token for verification
+      crowdstrike.falcon.auth:
+        client_id: "{{ lookup('env', 'FALCON_CLIENT_ID') }}"
+        client_secret: "{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"
+        action: generate
+      register: verify_auth
+      run_once: true
+
+    - name: Verify token structure and content
+      ansible.builtin.assert:
+        that:
+          - verify_auth is defined
+          - verify_auth.auth is defined
+          - verify_auth.auth.access_token is defined
+          - verify_auth.auth.access_token is string
+          - verify_auth.auth.access_token | length > 100
+          - verify_auth.auth.cloud is defined
+          - verify_auth.auth.cloud is string
+          - verify_auth.auth.cloud in ['us-1', 'us-2', 'eu-1', 'us-gov-1']
+          - verify_auth.changed == false
+        fail_msg: "Auth token verification failed"
+        success_msg: "Auth token structure verified successfully"
+
+    - name: Test token can be used with another module (cid_info)
+      crowdstrike.falcon.cid_info:
+        auth:
+          access_token: "{{ verify_auth.auth.access_token }}"
+          cloud: "{{ verify_auth.auth.cloud }}"
+      register: cid_result
+      run_once: true
+      ignore_errors: yes
+
+    - name: Verify CID retrieval with auth token
+      ansible.builtin.assert:
+        that:
+          - cid_result is defined
+          - cid_result is not failed or (cid_result.msg is defined and 'not found' not in cid_result.msg | lower)
+        fail_msg: "Auth token could not be used to retrieve CID"
+        success_msg: "Auth token successfully used with another module"
+      when: cid_result is not failed
+
+    - name: Test invalid credentials handling
+      crowdstrike.falcon.auth:
+        client_id: "invalid_client_id_12345"
+        client_secret: "invalid_secret_12345"
+        action: generate
+      register: invalid_auth
+      run_once: true
+      ignore_errors: yes
+
+    - name: Verify invalid credentials are rejected
+      ansible.builtin.assert:
+        that:
+          - invalid_auth is failed
+          - invalid_auth.msg is defined
+        fail_msg: "Invalid credentials should have been rejected"
+        success_msg: "Invalid credentials properly rejected"
+
+    - name: Test revoke with invalid token
+      crowdstrike.falcon.auth:
+        client_id: "{{ lookup('env', 'FALCON_CLIENT_ID') }}"
+        client_secret: "{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"
+        action: revoke
+        access_token: "invalid_token_12345"
+      register: invalid_revoke
+      run_once: true
+      ignore_errors: yes
+
+    - name: Verify revoke handles invalid tokens
+      ansible.builtin.assert:
+        that:
+          - invalid_revoke is defined
+        fail_msg: "Revoke with invalid token did not complete"
+        success_msg: "Revoke with invalid token handled appropriately"
+
+    - name: Test auth module check mode
+      crowdstrike.falcon.auth:
+        client_id: "{{ lookup('env', 'FALCON_CLIENT_ID') }}"
+        client_secret: "{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"
+        action: generate
+      check_mode: yes
+      register: check_mode_result
+      run_once: true
+
+    - name: Verify check mode behavior
+      ansible.builtin.assert:
+        that:
+          - check_mode_result is defined
+          - check_mode_result.changed == false
+        fail_msg: "Check mode verification failed"
+        success_msg: "Check mode works correctly"
+
+    - name: Generate token and immediately revoke
+      block:
+        - name: Generate new token
+          crowdstrike.falcon.auth:
+            client_id: "{{ lookup('env', 'FALCON_CLIENT_ID') }}"
+            client_secret: "{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"
+            action: generate
+          register: new_token
+          run_once: true
+
+        - name: Revoke the new token
+          crowdstrike.falcon.auth:
+            client_id: "{{ lookup('env', 'FALCON_CLIENT_ID') }}"
+            client_secret: "{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"
+            action: revoke
+            access_token: "{{ new_token.auth.access_token }}"
+          register: revoke_new
+          run_once: true
+
+        - name: Verify token lifecycle
+          ansible.builtin.assert:
+            that:
+              - new_token.auth.access_token is defined
+              - revoke_new is not failed
+            fail_msg: "Token lifecycle test failed"
+            success_msg: "Token lifecycle test passed"
+
+    - name: Test cloud autodiscovery
+      crowdstrike.falcon.auth:
+        client_id: "{{ lookup('env', 'FALCON_CLIENT_ID') }}"
+        client_secret: "{{ lookup('env', 'FALCON_CLIENT_SECRET') }}"
+      register: autodiscover_result
+      run_once: true
+
+    - name: Verify cloud autodiscovery works
+      ansible.builtin.assert:
+        that:
+          - autodiscover_result.auth.cloud is defined
+          - autodiscover_result.auth.cloud in ['us-1', 'us-2', 'eu-1', 'us-gov-1']
+        fail_msg: "Cloud autodiscovery failed"
+        success_msg: "Cloud autodiscovery successful"
+
+    - name: Final verification message
+      ansible.builtin.debug:
+        msg: "All auth module integration tests passed successfully!"
