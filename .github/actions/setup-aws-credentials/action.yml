@@ -1,0 +1,24 @@
+name: 'Setup AWS Credentials'
+description: 'Configure AWS credentials using OIDC authentication'
+inputs:
+  aws-oidc-role:
+    description: 'AWS IAM role ARN for OIDC authentication'
+    required: true
+  aws-region:
+    description: 'AWS region'
+    required: false
+    default: 'us-west-2'
+  role-session-name:
+    description: 'Role session name'
+    required: false
+    default: 'github-actions-molecule-ansible'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws-oidc-role }}
+        role-session-name: ${{ inputs.role-session-name }}
+        aws-region: ${{ inputs.aws-region }}

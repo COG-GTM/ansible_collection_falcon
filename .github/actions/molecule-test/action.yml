@@ -1,0 +1,88 @@
+name: 'Run Molecule Test'
+description: 'Execute Molecule test with retry logic and guaranteed cleanup'
+inputs:
+  scenario-name:
+    description: 'Molecule scenario name'
+    required: true
+  test-timeout-minutes:
+    description: 'Timeout for test execution'
+    required: false
+    default: '30'
+  cleanup-timeout-minutes:
+    description: 'Timeout for cleanup'
+    required: false
+    default: '10'
+  max-attempts:
+    description: 'Maximum retry attempts'
+    required: false
+    default: '3'
+  molecule-instance-name:
+    description: 'Molecule instance name'
+    required: true
+  molecule-image-owner:
+    description: 'AWS AMI owner ID'
+    required: true
+  molecule-image-arch:
+    description: 'Image architecture (x86_64 or arm64)'
+    required: true
+  molecule-image-name:
+    description: 'AMI name pattern'
+    required: true
+  molecule-instance-type:
+    description: 'EC2 instance type'
+    required: true
+  molecule-region:
+    description: 'AWS region'
+    required: true
+
+outputs:
+  test-outcome:
+    description: 'Outcome of the molecule test (success or failure)'
+    value: ${{ steps.molecule-role-test.outcome }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run role tests
+      id: molecule-role-test
+      uses: nick-fields/retry@v3
+      env:
+        MOLECULE_INSTANCE_NAME: ${{ inputs.molecule-instance-name }}
+        MOLECULE_IMAGE_OWNER: ${{ inputs.molecule-image-owner }}
+        MOLECULE_IMAGE_ARCH: ${{ inputs.molecule-image-arch }}
+        MOLECULE_IMAGE_NAME: ${{ inputs.molecule-image-name }}
+        MOLECULE_INSTANCE_TYPE: ${{ inputs.molecule-instance-type }}
+        MOLECULE_REGION: ${{ inputs.molecule-region }}
+      with:
+        timeout_minutes: ${{ inputs.test-timeout-minutes }}
+        max_attempts: ${{ inputs.max-attempts }}
+        retry_on: error
+        command: >-
+          molecule --version &&
+          ansible --version &&
+          molecule test --destroy never -s ${{ inputs.scenario-name }} -- -v
+      continue-on-error: true
+
+    - name: Ensure instances are destroyed
+      uses: nick-fields/retry@v3
+      env:
+        MOLECULE_INSTANCE_NAME: ${{ inputs.molecule-instance-name }}
+        MOLECULE_IMAGE_OWNER: ${{ inputs.molecule-image-owner }}
+        MOLECULE_IMAGE_ARCH: ${{ inputs.molecule-image-arch }}
+        MOLECULE_IMAGE_NAME: ${{ inputs.molecule-image-name }}
+        MOLECULE_INSTANCE_TYPE: ${{ inputs.molecule-instance-type }}
+        MOLECULE_REGION: ${{ inputs.molecule-region }}
+      with:
+        timeout_minutes: ${{ inputs.cleanup-timeout-minutes }}
+        max_attempts: ${{ inputs.max-attempts }}
+        retry_on: error
+        command: >-
+          molecule --version &&
+          ansible --version &&
+          molecule destroy -s ${{ inputs.scenario-name }}
+
+    - name: Assert molecule tests passed
+      uses: nick-fields/assert-action@v2
+      with:
+        expected: success
+        actual: ${{ steps.molecule-role-test.outcome }}

@@ -1,0 +1,32 @@
+name: 'Build and Install Ansible Collection'
+description: 'Build the Ansible collection and install it with retry logic'
+inputs:
+  timeout-minutes:
+    description: 'Timeout for build/install operation'
+    required: false
+    default: '2'
+  max-attempts:
+    description: 'Maximum retry attempts'
+    required: false
+    default: '3'
+  force-build:
+    description: 'Force rebuild even if collection exists'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Build/Install the collection
+      uses: nick-fields/retry@v3
+      with:
+        timeout_minutes: ${{ inputs.timeout-minutes }}
+        max_attempts: ${{ inputs.max-attempts }}
+        retry_on: error
+        command: |
+          force_flag=""
+          if [ "${{ inputs.force-build }}" = "true" ]; then
+            force_flag="-f"
+          fi
+          collection_file=$( basename $(ansible-galaxy collection build $force_flag | awk -F" " '{print $NF}'))
+          ansible-galaxy collection install $collection_file

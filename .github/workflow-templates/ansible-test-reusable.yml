@@ -1,0 +1,45 @@
+name: Reusable Ansible Test Workflow
+
+on:
+  workflow_call:
+    inputs:
+      checkout_ref:
+        description: 'Git ref to checkout (branch, tag, or commit SHA)'
+        required: false
+        type: string
+        default: ''
+      ansible_core_version:
+        description: 'Ansible core version for testing'
+        required: false
+        type: string
+        default: 'stable-2.18'
+      testing_type:
+        description: 'Type of ansible-test to run (sanity, units, integration)'
+        required: false
+        type: string
+        default: 'sanity'
+      pre_test_command:
+        description: 'Command to run before testing'
+        required: false
+        type: string
+        default: 'rm -rf .devcontainer/ .git* .pre-commit-config.yaml'
+
+jobs:
+  ansible-test:
+    runs-on: ubuntu-latest
+    env:
+      PY_COLORS: 1
+      ANSIBLE_FORCE_COLOR: 1
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref }}
+
+      - name: Perform testing with ansible-test
+        uses: ansible-community/ansible-test-gh-action@release/v1
+        with:
+          ansible-core-version: ${{ inputs.ansible_core_version }}
+          testing-type: ${{ inputs.testing_type }}
+          pre-test-cmd: ${{ inputs.pre_test_command }}
