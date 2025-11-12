@@ -1,0 +1,108 @@
+name: Reusable Python Lint Workflow
+
+on:
+  workflow_call:
+    inputs:
+      checkout_ref:
+        description: 'Git ref to checkout (branch, tag, or commit SHA)'
+        required: false
+        type: string
+        default: ''
+      python_version:
+        description: 'Python version to use'
+        required: false
+        type: string
+        default: '3.11'
+      target_directory:
+        description: 'Directory to lint (e.g., plugins/)'
+        required: false
+        type: string
+        default: 'plugins/'
+      run_flake8:
+        description: 'Run flake8 linting'
+        required: false
+        type: boolean
+        default: true
+      run_pylint:
+        description: 'Run pylint linting'
+        required: false
+        type: boolean
+        default: true
+      run_bandit:
+        description: 'Run bandit security linting'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  flake8:
+    if: ${{ inputs.run_flake8 }}
+    runs-on: ubuntu-latest
+    env:
+      PY_COLORS: 1
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install flake8
+
+      - name: Lint with flake8
+        run: flake8 ${{ inputs.target_directory }}
+
+  pylint:
+    if: ${{ inputs.run_pylint }}
+    runs-on: ubuntu-latest
+    env:
+      PY_COLORS: 1
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pylint
+
+      - name: Lint with pylint
+        run: find ${{ inputs.target_directory }} -name "*.py" | xargs pylint
+
+  bandit:
+    if: ${{ inputs.run_bandit }}
+    runs-on: ubuntu-latest
+    env:
+      PY_COLORS: 1
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.checkout_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install bandit
+
+      - name: Lint with bandit
+        run: bandit -l -i -r ${{ inputs.target_directory }}
