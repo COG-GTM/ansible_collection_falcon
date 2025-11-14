@@ -6,7 +6,6 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 import json
-import pytest
 
 from ansible.module_utils import basic
 from ansible.module_utils.common.text.converters import to_bytes
@@ -49,11 +48,3 @@ def get_bin_path(self, arg, required=False, opt_dirs=None):
 
 def mock_run_command(self, cmd, use_unsafe_shell=False):
     return (0, "", "")
-
-
-@pytest.fixture(autouse=True)
-def patch_ansible_module(monkeypatch):
-    monkeypatch.setattr(basic.AnsibleModule, "exit_json", exit_json)
-    monkeypatch.setattr(basic.AnsibleModule, "fail_json", fail_json)
-    monkeypatch.setattr(basic.AnsibleModule, "get_bin_path", get_bin_path)
-    monkeypatch.setattr(basic.AnsibleModule, "run_command", mock_run_command)
