@@ -5,7 +5,16 @@ from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 
+import sys
 import pytest
+
+try:
+    from unittest.mock import MagicMock
+except ImportError:
+    from mock import MagicMock
+
+sys.modules['falconpy'] = MagicMock()
+
 from ansible.module_utils import basic
 from ansible_collections.crowdstrike.falcon.tests.unit.plugins.modules import utils
 
