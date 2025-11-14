@@ -9,15 +9,9 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 import json
-import sys
 
 from ansible.module_utils import basic
 from ansible.module_utils.common.text.converters import to_bytes
-
-try:
-    from unittest.mock import MagicMock
-except ImportError:
-    from mock import MagicMock
 
 
 class AnsibleExitJson(Exception):

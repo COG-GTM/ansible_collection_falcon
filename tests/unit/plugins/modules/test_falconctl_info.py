@@ -17,9 +17,9 @@ from ansible_collections.crowdstrike.falcon.tests.unit.plugins.modules.utils imp
 )
 
 try:
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import patch
 except ImportError:
-    from mock import MagicMock, patch
+    from mock import patch
 
 
 class TestFalconCtlInfoModule:

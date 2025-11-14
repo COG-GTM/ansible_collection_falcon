@@ -13,8 +13,6 @@ from ansible_collections.crowdstrike.falcon.plugins.modules import auth
 from ansible_collections.crowdstrike.falcon.tests.unit.plugins.modules.utils import (
     AnsibleExitJson,
     AnsibleFailJson,
-    exit_json,
-    fail_json,
     set_module_args,
 )
 
