@@ -9,11 +9,22 @@ import sys
 import pytest
 
 try:
-    from unittest.mock import MagicMock
+    from unittest.mock import MagicMock, Mock
 except ImportError:
-    from mock import MagicMock
+    from mock import MagicMock, Mock
 
-sys.modules['falconpy'] = MagicMock()
+mock_falconpy = MagicMock()
+mock_falconpy._version = Mock()
+mock_falconpy._version.__version__ = "1.4.3"
+mock_falconpy.OAuth2 = MagicMock
+mock_falconpy.Hosts = MagicMock
+mock_falconpy.SensorDownload = MagicMock
+mock_falconpy.SensorUpdatePolicy = MagicMock
+mock_falconpy.Intel = MagicMock
+mock_falconpy.KernelCompatibility = MagicMock
+
+sys.modules['falconpy'] = mock_falconpy
+sys.modules['falconpy._version'] = mock_falconpy._version
 
 from ansible.module_utils import basic
 from ansible_collections.crowdstrike.falcon.tests.unit.plugins.modules import utils
