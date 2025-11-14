@@ -5,15 +5,17 @@ on:
     branches: [ main ]
     paths:
       - 'plugins/**'
+      - 'tests/unit/**'
       - '.github/workflows/ansible-test.yml'
 
   pull_request:
     paths:
       - 'plugins/**'
+      - 'tests/unit/**'
       - '.github/workflows/ansible-test.yml'
 
 jobs:
-  ansible-test:
+  sanity:
     runs-on: ubuntu-latest
     env:
       PY_COLORS: 1
@@ -28,4 +30,21 @@ jobs:
         with:
           ansible-core-version: stable-2.18
           testing-type: sanity
+          pre-test-cmd: 'rm -rf .devcontainer/ .git* .pre-commit-config.yaml'
+
+  units:
+    runs-on: ubuntu-latest
+    env:
+      PY_COLORS: 1
+      ANSIBLE_FORCE_COLOR: 1
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Perform unit testing with ansible-test
+        uses: ansible-community/ansible-test-gh-action@release/v1
+        with:
+          ansible-core-version: stable-2.18
+          testing-type: units
           pre-test-cmd: 'rm -rf .devcontainer/ .git* .pre-commit-config.yaml'
